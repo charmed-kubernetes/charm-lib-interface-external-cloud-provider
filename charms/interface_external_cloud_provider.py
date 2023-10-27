@@ -75,10 +75,10 @@ class ExternalCloudProvider:
     def name(self) -> Optional[str]:
         """Name of the cloud-provider."""
         vendor = self.hostnamectl.get("HardwareVendor")
-        if not vendor:
-            log.warning(
-                f"Failed to detect cloud vendor from hostnamectl {self.hostnamectl}"
-            )
+        if vendor:
+            log.info(f"Determined this cloud provider is {vendor}")
+        else:
+            log.warning(f"Cannot determine cloud provider from {self.hostnamectl}")
             return None
 
         for cloud in CLOUD_PROVIDERS:
@@ -90,13 +90,19 @@ class ExternalCloudProvider:
     @cached_property
     def provider_id(self) -> Optional[str]:
         """Retrieve the cloud provider-id for this node"""
+        provider_id = None
         if self.name == "vsphere":
             vsphere_id = Path(VSPHERE_METADATA).read_text()
-            return f"vsphere:///{vsphere_id.strip()}"
+            provider_id = f"vsphere:///{vsphere_id.strip()}"
         elif self.name == "openstack" and self.metadata:
-            return f"openstack:///{self.metadata['uuid']}"
+            provider_id = f"openstack:///{self.metadata['uuid']}"
         elif self.name == "azure" and self.metadata:
-            return self.metadata["compute"]["vmId"]
+            provider_id = self.metadata["compute"]["vmId"]
+        if provider_id:
+            log.info(f"Determined this node's provider-id is {provider_id}")
+        else:
+            log.warning("Cannot determine this node's provider-id")
+        return provider_id
 
     @cached_property
     def metadata(self) -> Optional[dict]:
