@@ -71,7 +71,7 @@ class ExternalCloudProvider:
 
         return json.loads(hostnamectl)
 
-    @property
+    @cached_property
     def name(self) -> Optional[str]:
         """Name of the cloud-provider."""
         vendor = self.hostnamectl.get("HardwareVendor")
