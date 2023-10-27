@@ -52,7 +52,7 @@ class ExternalCloudProvider:
                             return True
         elif self.endpoint == "external-cloud-provider":
             # True if any units are joined on this relation.
-            return not len(self.relations)
+            return bool(self.relations)
 
     @cached_property
     def hostnamectl(self):
@@ -62,7 +62,7 @@ class ExternalCloudProvider:
         hostnamectl.
         """
         try:
-            hostnamectl = check_output("hostnamectl", "--json=short")
+            hostnamectl = check_output(["hostnamectl", "--json=short"])
         except CalledProcessError as e:
             log.warning("hostnamectl failure", e)
             return None
