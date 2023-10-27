@@ -48,11 +48,13 @@ class ExternalCloudProvider:
             for relation in self.relations:
                 for unit in relation.units:
                     if xcp := relation.data[unit].get("has-xcp"):
-                        if xcp == "True":
+                        if xcp.lower() == "true":
                             return True
         elif self.endpoint == "external-cloud-provider":
             # True if any units are joined on this relation.
             return bool(self.relations)
+
+        return False
 
     @cached_property
     def hostnamectl(self):
