@@ -1,8 +1,10 @@
 import json
 import logging
 from functools import cached_property
+from pathlib import Path
 from subprocess import CalledProcessError, check_output
 from typing import List, Optional
+from urllib.request import Request, urlopen
 
 from ops import CharmBase, Relation, Unit
 
@@ -12,15 +14,45 @@ CLOUD_PROVIDERS = [
     {"name": "aws", "vendor": "Amazon"},
     {"name": "openstack", "vendor": "OpenStack"},
     {"name": "azure", "vendor": "Microsoft"},
-    {"name": "gcp", "vendor": "Google"},
+    {"name": "gce", "vendor": "Google"},
     {"name": "vsphere", "vendor": "VMware"},
 ]
 
+OPENSTACK_METADATA = "http://169.254.169.254/openstack/2018-08-27/meta_data.json"
+AWS_METADATA = "http://169.254.169.254/2009-04-04/meta-data/instance-id"
+VSPHERE_METADATA = "/sys/class/dmi/id/product_uuid"
+AZURE_METADATA = "http://169.254.169.254/metadata/instance?api-version=2017-12-01"
 
-class ExternalCloudProviderBase:
+
+class ExternalCloudProvider:
+    """Provides data for configuring kubernetes components using an external-cloud provider."""
+
+    def __init__(self, charm: CharmBase, endpoint: str):
+        self.charm = charm
+        self.endpoint = endpoint
+
     @property
     def relations(self) -> List[Relation]:
         return self.charm.model.relations[self.endpoint]
+
+    @property
+    def unit(self) -> Unit:
+        return self.charm.unit
+
+    @property
+    def has_xcp(self) -> bool:
+        """Whether or not this cluster is using an external cloud provider."""
+
+        if self.endpoint == "kube-control":
+            # determine has_xcp from the kube-control relation
+            for relation in self.relations:
+                for unit in relation.units:
+                    if xcp := relation.data[unit].get("has-xcp"):
+                        if xcp == "True":
+                            return True
+        elif self.endpoint == "external-cloud-provider":
+            # True if any units are joined on this relation.
+            return not len(self.relations)
 
     @cached_property
     def hostnamectl(self):
@@ -37,22 +69,9 @@ class ExternalCloudProviderBase:
 
         return json.loads(hostnamectl)
 
-
-class ExternalCloudProviderRequires:
-    """Implements the Requires side of the external-cloud-provider interface."""
-
-    def __init__(self, charm: CharmBase, endpoint: str):
-        self.charm = charm
-        self.endpoint = endpoint
-
     @property
     def name(self) -> Optional[str]:
         """Name of the cloud-provider."""
-        for relation in self.relations:
-            for unit in relation.units:
-                if name := relation.data[unit].get("name"):
-                    return name
-
         vendor = self.hostnamectl.get("HardwareVendor")
         if not vendor:
             log.warning(
@@ -66,12 +85,37 @@ class ExternalCloudProviderRequires:
 
         log.warning(f"Failed to identify cloud from machine's vendor: {vendor}")
 
-    @property
-    def unit(self) -> Unit:
-        return self.charm.unit
+    @cached_property
+    def provider_id(self) -> Optional[str]:
+        """Retrieve the cloud provider-id for this node"""
+        if self.name == "vsphere":
+            vsphere_id = Path(VSPHERE_METADATA).read_text()
+            return f"vsphere:///{vsphere_id.strip()}"
+        elif self.name == "openstack" and self.metadata:
+            return f"openstack:///{self.metadata['uuid']}"
+        elif self.name == "azure" and self.metadata:
+            return self.metadata["compute"]["vmId"]
+
+    @cached_property
+    def metadata(self) -> Optional[dict]:
+        """Fetch instance metadata on this cloud environment."""
+        if self.name == "openstack":
+            metadata_req = urlopen(OPENSTACK_METADATA)
+            metadata = metadata_req.read() if metadata_req.status == 200 else None
+            return json.loads(metadata) if metadata else None
+        elif self.name == "azure":
+            req = Request(AZURE_METADATA, headers={"Metadata": "true"})
+            metadata_req = urlopen(req)
+            metadata = metadata_req.read() if metadata_req.status == 200 else None
+            return json.loads(metadata) if metadata else None
+        elif self.name == "gce":
+            req = Request(AZURE_METADATA, headers={"Metadata": "true"})
+            metadata_req = urlopen(req)
+            metadata = metadata_req.read() if metadata_req.status == 200 else None
+            return json.loads(metadata) if metadata else None
 
 
-class ExternalCloudProviderProvides:
+class ExternalCloudProviderProvides(ExternalCloudProvider):
     """Implements the Provides side of the external-cloud-provider interface."""
 
     def __init__(self, charm: CharmBase, endpoint: str):
@@ -82,8 +126,4 @@ class ExternalCloudProviderProvides:
     def set_name(self, name: str):
         """Set the provider name."""
         for relation in self.relations:
-            relation.data[self.unit]["name"] = name
-
-    @property
-    def unit(self) -> Unit:
-        return self.charm.unit
+            relation.data[self.unit]["provider-name"] = name
