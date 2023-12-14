@@ -11,7 +11,7 @@ import charms.interface_external_cloud_provider as iecp
         (b"Amazon EC2", "aws"),
         (b"Google", "gce"),
         (b"Microsoft Corporation", "azure"),
-        (b"VMWare, Inc.", "vsphere"),
+        (b"VMware, Inc.", "vsphere"),
         (b"OpenStack Foundation", "openstack"),
         (b"Dell Inc.", None),
     ],
