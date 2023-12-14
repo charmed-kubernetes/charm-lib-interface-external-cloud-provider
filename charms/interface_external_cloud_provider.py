@@ -15,7 +15,7 @@ CLOUD_PROVIDERS = [
     {"name": "openstack", "vendor": "OpenStack"},
     {"name": "azure", "vendor": "Microsoft"},
     {"name": "gce", "vendor": "Google"},
-    {"name": "vsphere", "vendor": "VMWare"},
+    {"name": "vsphere", "vendor": "VMware"},
 ]
 
 OPENSTACK_METADATA = "http://169.254.169.254/openstack/2018-08-27/meta_data.json"
