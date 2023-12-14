@@ -68,7 +68,7 @@ class ExternalCloudProvider:
         except CalledProcessError as e:
             log.warning("dmidecode failure: %s", e)
             return None
-        return vendor
+        return vendor.decode()
 
     @cached_property
     def name(self) -> Optional[str]:

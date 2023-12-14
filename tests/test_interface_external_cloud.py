@@ -8,12 +8,12 @@ import charms.interface_external_cloud_provider as iecp
 @pytest.mark.parametrize(
     "vendor, cloud_name",
     [
-        ("Amazon EC2", "aws"),
-        ("Google", "gce"),
-        ("Microsoft Corporation", "azure"),
-        ("VMWare, Inc.", "vsphere"),
-        ("OpenStack Foundation", "openstack"),
-        ("Dell Inc.", None),
+        (b"Amazon EC2", "aws"),
+        (b"Google", "gce"),
+        (b"Microsoft Corporation", "azure"),
+        (b"VMWare, Inc.", "vsphere"),
+        (b"OpenStack Foundation", "openstack"),
+        (b"Dell Inc.", None),
     ],
 )
 def test_vendor(vendor, cloud_name):
