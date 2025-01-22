@@ -21,6 +21,7 @@ OPENSTACK_METADATA = "http://169.254.169.254/openstack/2018-08-27/meta_data.json
 AWS_METADATA = "http://169.254.169.254/2009-04-04/meta-data/instance-id"
 VSPHERE_METADATA = "/sys/class/dmi/id/product_uuid"
 AZURE_METADATA = "http://169.254.169.254/metadata/instance?api-version=2017-12-01"
+GOOGLE_METADATA = "http://metadata.google.internal/computeMetadata/v1/instance/id"
 
 
 class ExternalCloudProvider:
@@ -96,6 +97,8 @@ class ExternalCloudProvider:
             provider_id = f"openstack:///{self.metadata['uuid']}"
         elif self.name == "azure" and self.metadata:
             provider_id = self.metadata["compute"]["vmId"]
+        elif self.name == "gce" and self.metadata:
+            provider_id = self.metadata["id"]
         if provider_id:
             log.info(f"Determined this node's provider-id is {provider_id}")
         else:
@@ -115,10 +118,9 @@ class ExternalCloudProvider:
             metadata = metadata_req.read() if metadata_req.status == 200 else None
             return json.loads(metadata) if metadata else None
         elif self.name == "gce":
-            req = Request(AZURE_METADATA, headers={"Metadata": "true"})
+            req = Request(GOOGLE_METADATA, headers={"Metadata-Flavor": "Google"})
             metadata_req = urlopen(req)
-            metadata = metadata_req.read() if metadata_req.status == 200 else None
-            return json.loads(metadata) if metadata else None
+            return {"id": metadata_req.read()} if metadata_req.status == 200 else None
 
 
 class ExternalCloudProviderProvides(ExternalCloudProvider):
