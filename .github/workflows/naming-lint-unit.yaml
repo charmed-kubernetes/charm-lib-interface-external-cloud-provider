@@ -11,4 +11,4 @@ jobs:
     name: Inclusive Naming
     uses: charmed-kubernetes/workflows/.github/workflows/lint-unit.yaml@main
     with:
-      python: "['3.8', '3.9', '3.10', '3.11', '3.12']"
+      with-uv: true

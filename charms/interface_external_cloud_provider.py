@@ -2,7 +2,6 @@ import json
 import logging
 from functools import cached_property
 from pathlib import Path
-from subprocess import CalledProcessError, check_output
 from typing import List, Optional
 from urllib.request import Request, urlopen
 
@@ -64,12 +63,12 @@ class ExternalCloudProvider:
         found over the relation, we can guess the cloud name using
         dmidecode.
         """
+        VENDOR_PATH = Path("/sys/devices/virtual/dmi/id/sys_vendor")
         try:
-            vendor = check_output(["dmidecode", "-s", "system-manufacturer"])
-        except CalledProcessError as e:
-            log.warning("dmidecode failure: %s", e)
+            return VENDOR_PATH.read_text()
+        except FileNotFoundError:
+            log.exception("Failed to find vendor: %s")
             return None
-        return vendor.decode()
 
     @cached_property
     def name(self) -> Optional[str]:
