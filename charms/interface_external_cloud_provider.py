@@ -58,28 +58,27 @@ class ExternalCloudProvider:
         return False
 
     @cached_property
-    def hostnamectl(self):
+    def _vendor(self):
         """
         Since the external-cloud-provider is joined, but no name is
         found over the relation, we can guess the cloud name using
-        hostnamectl.
+        dmidecode.
         """
         try:
-            hostnamectl = check_output(["hostnamectl", "--json=short"])
+            vendor = check_output(["dmidecode", "-s", "system-manufacturer"])
         except CalledProcessError as e:
-            log.warning("hostnamectl failure", e)
+            log.warning("dmidecode failure: %s", e)
             return None
-
-        return json.loads(hostnamectl)
+        return vendor.decode()
 
     @cached_property
     def name(self) -> Optional[str]:
         """Name of the cloud-provider."""
-        vendor = self.hostnamectl.get("HardwareVendor")
+        vendor = self._vendor
         if vendor:
             log.info(f"Determined this cloud provider is {vendor}")
         else:
-            log.warning(f"Cannot determine cloud provider from {self.hostnamectl}")
+            log.warning(f"Cannot determine cloud provider from {vendor}")
             return None
 
         for cloud in CLOUD_PROVIDERS:
