@@ -2,7 +2,6 @@ import json
 import logging
 from functools import cached_property
 from pathlib import Path
-from subprocess import CalledProcessError, check_output
 from typing import List, Optional
 from urllib.request import Request, urlopen
 
@@ -58,28 +57,27 @@ class ExternalCloudProvider:
         return False
 
     @cached_property
-    def hostnamectl(self):
+    def _vendor(self):
         """
         Since the external-cloud-provider is joined, but no name is
         found over the relation, we can guess the cloud name using
-        hostnamectl.
+        dmidecode.
         """
+        VENDOR_PATH = Path("/sys/devices/virtual/dmi/id/sys_vendor")
         try:
-            hostnamectl = check_output(["hostnamectl", "--json=short"])
-        except CalledProcessError as e:
-            log.warning("hostnamectl failure", e)
+            return VENDOR_PATH.read_text()
+        except FileNotFoundError:
+            log.exception("Failed to find vendor: %s")
             return None
-
-        return json.loads(hostnamectl)
 
     @cached_property
     def name(self) -> Optional[str]:
         """Name of the cloud-provider."""
-        vendor = self.hostnamectl.get("HardwareVendor")
+        vendor = self._vendor
         if vendor:
             log.info(f"Determined this cloud provider is {vendor}")
         else:
-            log.warning(f"Cannot determine cloud provider from {self.hostnamectl}")
+            log.warning(f"Cannot determine cloud provider from {vendor}")
             return None
 
         for cloud in CLOUD_PROVIDERS:
